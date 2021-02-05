@@ -6,6 +6,8 @@ class Alarm {
   private:
     int pin;
   public:
+    Alarm(){}
+    
     Alarm(int pin) {
       this->pin = pin;
       pinMode(pin, OUTPUT);
@@ -27,6 +29,8 @@ class TemperatureSensor {
     OneWire oneWire;
     DallasTemperature sensors;
   public:
+    TemperatureSensor() {}
+    
     TemperatureSensor(int pin) {
       this->pin = pin;
       
@@ -65,6 +69,8 @@ class Joystick {
     String UP_MOVEMENT = "U";
     String DOWN_MOVEMENT = "D";
     String PRESS_MOVEMENT = "P";
+
+    Joystick() {}
 
     Joystick(int xPin, int yPin, int swPin) {
       this->xPin = xPin;
@@ -125,6 +131,8 @@ class Button {
     int lastState = LOW;
     int pin;
   public:
+    Button() {}
+  
     Button(byte pin) {
       this->pin = pin;
       pinMode(pin, INPUT);
@@ -190,12 +198,11 @@ class MashProcessor {
     int manualModeSwitch = LOW;
     int waterPumpSwitch = LOW;
     int waterPumpHeatSwitch = LOW;
-  
-   Joystick joystick = Joystick(0, 1, 8);
-   TemperatureSensor temperatureSensor = TemperatureSensor(7);
-   Alarm alarm = Alarm(13);
 
     ScreenHandler screenHandler;
+    TemperatureSensor temperatureSensor;
+    Joystick joystick;
+    Alarm alarm;
 
     const int MENU_ACTUAL_MASHING_DISPLAYED = 1;
     const int MENU_SET_MASHING_DISPLAYED = 2;
@@ -361,8 +368,11 @@ class MashProcessor {
   }
 
   public:
-    MashProcessor(ScreenHandler screenHandler) {
+    MashProcessor(ScreenHandler screenHandler, TemperatureSensor temperatureSensor, Joystick joystick, Alarm alarm) {
       this->screenHandler = screenHandler;
+      this->temperatureSensor = temperatureSensor;
+      this->joystick = joystick;
+      this->alarm = alarm;
     }
 
     void config() {
@@ -406,11 +416,12 @@ class MashProcessor {
     }
 };
 
+TemperatureSensor temperatureSensor = TemperatureSensor(7);
 ScreenHandler screenHandler = ScreenHandler(16, 2);
+Joystick joystick = Joystick(0, 1, 8);
+Alarm alarm = Alarm(13);
 
-MashProcessor mashProcessor = MashProcessor(screenHandler);
-
-Alarm alarma = Alarm(13);
+MashProcessor mashProcessor = MashProcessor(screenHandler, temperatureSensor, joystick, alarm);
 
 void setup() {
   screenHandler.show("Jarbier 1.0", "  Lets brew!");
