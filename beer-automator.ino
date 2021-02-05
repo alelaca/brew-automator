@@ -1,4 +1,4 @@
-#include <OneWire.h> 
+#include <OneWire.h>
 #include <DallasTemperature.h>
 #include <LiquidCrystal.h>
 
@@ -7,7 +7,7 @@ class Alarm {
     int pin;
   public:
     Alarm(){}
-    
+
     Alarm(int pin) {
       this->pin = pin;
       pinMode(pin, OUTPUT);
@@ -30,14 +30,14 @@ class TemperatureSensor {
     DallasTemperature sensors;
   public:
     TemperatureSensor() {}
-    
+
     TemperatureSensor(int pin) {
       this->pin = pin;
-      
+
       oneWire = OneWire(pin);
       sensors = DallasTemperature(&oneWire);
-      
-      sensors.begin(); 
+
+      sensors.begin();
     }
 
   int getTemperature() {
@@ -132,25 +132,25 @@ class Button {
     int pin;
   public:
     Button() {}
-  
+
     Button(byte pin) {
       this->pin = pin;
       pinMode(pin, INPUT);
     }
-  
+
     void update() {
       int state = digitalRead(pin);
-      
+
       if (state == HIGH && lastState == LOW) {
         pressed = 1 - pressed;
         delay(20);
       } else {
         pressed = 0;
       }
-      
+
       lastState = state;
     }
-  
+
     bool isPressed() {
       update();
       return (pressed == HIGH);
@@ -158,7 +158,7 @@ class Button {
 };
 
 class ScreenHandler {
-  private: 
+  private:
     LiquidCrystal screen = LiquidCrystal(12, 11, 5, 4, 3, 2);
 
   public:
@@ -173,13 +173,13 @@ class ScreenHandler {
     void show(String upperMessage, String bottomMessage) {
       upperMessage += "          ";
       bottomMessage += "          ";
-      
+
       screen.setCursor(0, 0);
       screen.print(upperMessage);
       screen.setCursor(0, 1);
       screen.print(bottomMessage);
     }
-  
+
 };
 
 class MashProcessor {
@@ -237,7 +237,7 @@ class MashProcessor {
 
     void displayRecirculatingMenu() {
       String recircMsg = "t=" + getTimeFormat(actualRecirculationTime) + " T=" + String(actualMashTemperature);
-      screenHandler.show("Recirculating", recircMsg); 
+      screenHandler.show("Recirculating", recircMsg);
     }
 
     void displayFinishMenu() {
@@ -247,7 +247,7 @@ class MashProcessor {
     String getTimeFormat(int timeInSeg) {
       int min = timeInSeg / 60;
       int seg = timeInSeg - (min * 60);
-      
+
       String minStr = String(min);
       if (min < 10) {
         minStr = "0" + minStr;
@@ -272,7 +272,7 @@ class MashProcessor {
 
     void readMashSettings() {
       String movement = joystick.getMovement();
-      
+
       if (movement == joystick.RIGHT_MOVEMENT) {
          if (currentConfigToSelect == CONFIG_TEMP_ID) {
           currentConfig = &selectedMashTime;
@@ -291,10 +291,10 @@ class MashProcessor {
         *currentConfig = *currentConfig - 1;
       }
     }
-  
+
   void readRecirculationSettings() {
     String movement = joystick.getMovement();
-    
+
     if (movement == joystick.UP_MOVEMENT) {
         selectedRecirculationTime++;
       }
@@ -423,12 +423,43 @@ Alarm alarm = Alarm(13);
 
 MashProcessor mashProcessor = MashProcessor(screenHandler, temperatureSensor, joystick, alarm);
 
+String menuItem1 = "1-Mash";
+String menuItem2 = "2-Cook";
+String menuItem3 = "3-Ferment";
+
 void setup() {
   screenHandler.show("Jarbier 1.0", "  Lets brew!");
   delay(4000);
 }
 
 void loop() {
-  mashProcessor.config();
-  mashProcessor.process();
+  screenHandler.show("Beer automator menu", menuItem1);
+
+  int selectedMenuOption = 1;
+  String joystickMovement = joystick.getMovement();
+  while (joystickMovement != joystick.PRESS_MOVEMENT) {
+    if (joystickMovement == joystick.DOWN_MOVEMENT) {
+      selectedMenuOption++;
+    }
+    else if (joystickMovement == joystick.UP_MOVEMENT) {
+      selectedMenuOption--;
+    }
+
+    if (selectedMenuOption < 1 || selectedMenuOption > 3) {
+      selectedMenuOption = 1;
+    }
+
+    if (selectedMenuOption == 1) {
+      screenHandler.show("Beer automator menu", menuItem1);
+    } else if (selectedMenuOption == 2) {
+      screenHandler.show("Beer automator menu", menuItem2);
+    } else if (selectedMenuOption == 3) {
+      screenHandler.show("Beer automator menu", menuItem3);
+    }
+  }
+
+  if (selectedMenuOption == 1) {
+    mashProcessor.config();
+    mashProcessor.process();
+  }
 }
