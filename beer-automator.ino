@@ -1,4 +1,4 @@
-#include <OneWire.h> 
+#include <OneWire.h>
 #include <DallasTemperature.h>
 #include <LiquidCrystal.h>
 
@@ -29,11 +29,11 @@ class TemperatureSensor {
   public:
     TemperatureSensor(int pin) {
       this->pin = pin;
-      
+
       oneWire = OneWire(pin);
       sensors = DallasTemperature(&oneWire);
-      
-      sensors.begin(); 
+
+      sensors.begin();
     }
 
   int getTemperature() {
@@ -54,11 +54,18 @@ class Joystick {
 
     bool selected = false;
 
-    void handleSelectionTypes(int x, int y) {
+    void handleSelectionType(int x, int y) {
       if (y < 1023 / 2 + deadZoneY / 2 && y > 1023 / 2 - deadZoneY / 2) {
+        selected = false;
+      } else if (x < 1023 / 2 + deadZoneX / 2 && x > 1023 / 2 - deadZoneX / 2) {
+        selected = false;
+      } else if (y >= 1023 - selectOneZone || y <= 0 + selectOneZone) {
+        selected = false;
+      } else if (x >= 1023 - selectOneZone || x <= 0 + selectOneZone) {
         selected = false;
       }
     }
+
   public:
     String LEFT_MOVEMENT = "L";
     String RIGHT_MOVEMENT = "R";
@@ -82,8 +89,7 @@ class Joystick {
       int swState = digitalRead(swPin);
 
       if (selected) {
-        handleSelectionTypes(x, y);
-        return "";
+        handleSelectionType(x, y);
       }
 
       if (x > (1023 / 2 + deadZoneX / 2)) {
@@ -129,20 +135,20 @@ class Button {
       this->pin = pin;
       pinMode(pin, INPUT);
     }
-  
+
     void update() {
       int state = digitalRead(pin);
-      
+
       if (state == HIGH && lastState == LOW) {
         pressed = 1 - pressed;
         delay(20);
       } else {
         pressed = 0;
       }
-      
+
       lastState = state;
     }
-  
+
     bool isPressed() {
       update();
       return (pressed == HIGH);
@@ -150,7 +156,7 @@ class Button {
 };
 
 class ScreenHandler {
-  private: 
+  private:
     LiquidCrystal screen = LiquidCrystal(12, 11, 5, 4, 3, 2);
 
   public:
@@ -165,13 +171,13 @@ class ScreenHandler {
     void show(String upperMessage, String bottomMessage) {
       upperMessage += "          ";
       bottomMessage += "          ";
-      
+
       screen.setCursor(0, 0);
       screen.print(upperMessage);
       screen.setCursor(0, 1);
       screen.print(bottomMessage);
     }
-  
+
 };
 
 class MashProcessor {
@@ -190,7 +196,7 @@ class MashProcessor {
     int manualModeSwitch = LOW;
     int waterPumpSwitch = LOW;
     int waterPumpHeatSwitch = LOW;
-  
+
    Joystick joystick = Joystick(0, 1, 8);
    TemperatureSensor temperatureSensor = TemperatureSensor(7);
    Alarm alarm = Alarm(13);
@@ -230,7 +236,7 @@ class MashProcessor {
 
     void displayRecirculatingMenu() {
       String recircMsg = "t=" + getTimeFormat(actualRecirculationTime) + " T=" + String(actualMashTemperature);
-      screenHandler.show("Recirculating", recircMsg); 
+      screenHandler.show("Recirculating", recircMsg);
     }
 
     void displayFinishMenu() {
@@ -240,7 +246,7 @@ class MashProcessor {
     String getTimeFormat(int timeInSeg) {
       int min = timeInSeg / 60;
       int seg = timeInSeg - (min * 60);
-      
+
       String minStr = String(min);
       if (min < 10) {
         minStr = "0" + minStr;
@@ -265,7 +271,7 @@ class MashProcessor {
 
     void readMashSettings() {
       String movement = joystick.getMovement();
-      
+
       if (movement == joystick.RIGHT_MOVEMENT) {
          if (currentConfigToSelect == CONFIG_TEMP_ID) {
           currentConfig = &selectedMashTime;
@@ -284,10 +290,10 @@ class MashProcessor {
         *currentConfig = *currentConfig - 1;
       }
     }
-  
+
   void readRecirculationSettings() {
     String movement = joystick.getMovement();
-    
+
     if (movement == joystick.UP_MOVEMENT) {
         selectedRecirculationTime++;
       }
