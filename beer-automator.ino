@@ -461,5 +461,9 @@ void loop() {
   if (selectedMenuOption == 1) {
     mashProcessor.config();
     mashProcessor.process();
+  } else if (selectedMenuOption == 2) {
+    screenHandler.show("Beer automator menu", "Not rdy yet");
+  } else if (selectedMenuOption == 3) {
+    screenHandler.show("Beer automator menu", "Not rdy yet");
   }
 }
