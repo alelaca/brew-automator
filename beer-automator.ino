@@ -433,11 +433,12 @@ void setup() {
 }
 
 void loop() {
-  screenHandler.show("Beer automator menu", menuItem1);
+  screenHandler.show("Beer menu", menuItem1);
 
   int selectedMenuOption = 1;
-  String joystickMovement = joystick.getMovement();
+  String joystickMovement = "";
   while (joystickMovement != joystick.PRESS_MOVEMENT) {
+    joystickMovement = joystick.getMovement();
     if (joystickMovement == joystick.DOWN_MOVEMENT) {
       selectedMenuOption++;
     }
@@ -450,20 +451,24 @@ void loop() {
     }
 
     if (selectedMenuOption == 1) {
-      screenHandler.show("Beer automator menu", menuItem1);
+      screenHandler.show("Beer menu", menuItem1);
     } else if (selectedMenuOption == 2) {
-      screenHandler.show("Beer automator menu", menuItem2);
+      screenHandler.show("Beer menu", menuItem2);
     } else if (selectedMenuOption == 3) {
-      screenHandler.show("Beer automator menu", menuItem3);
+      screenHandler.show("Beer menu", menuItem3);
     }
   }
+
+  delay(800);
 
   if (selectedMenuOption == 1) {
     mashProcessor.config();
     mashProcessor.process();
   } else if (selectedMenuOption == 2) {
-    screenHandler.show("Beer automator menu", "Not rdy yet");
+    screenHandler.show("Beer menu", "Not rdy yet");
   } else if (selectedMenuOption == 3) {
-    screenHandler.show("Beer automator menu", "Not rdy yet");
+    screenHandler.show("Beer menu", "Not rdy yet");
   }
+
+  delay(1000);
 }
