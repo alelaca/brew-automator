@@ -56,17 +56,18 @@ class Joystick {
     int deadZoneY = 500;
     int selectOneZone = 23;
 
-    bool selected = false;
+    bool selectedX = false;
+    bool selectedY = false;
 
     void handleSelectionType(int x, int y) {
       if (y < 1023 / 2 + deadZoneY / 2 && y > 1023 / 2 - deadZoneY / 2) {
-        selected = false;
+        selectedY = false;
       } else if (x < 1023 / 2 + deadZoneX / 2 && x > 1023 / 2 - deadZoneX / 2) {
-        selected = false;
+        selectedX = false;
       } else if (y >= 1023 - selectOneZone || y <= 0 + selectOneZone) {
-        selected = false;
+        selectedY = false;
       } else if (x >= 1023 - selectOneZone || x <= 0 + selectOneZone) {
-        selected = false;
+        selectedX = false;
       }
     }
 
@@ -94,31 +95,32 @@ class Joystick {
       int y = analogRead(yPin);
       int swState = digitalRead(swPin);
 
-      if (selected) {
+      if (selectedX || selectedY) {
         handleSelectionType(x, y);
+        return "";
       }
 
       if (x > (1023 / 2 + deadZoneX / 2)) {
         if (x < 1023 - selectOneZone) {
-          selected = true;
+          selectedX = true;
         }
         return RIGHT_MOVEMENT;
       }
       if (x < (1023 / 2 - deadZoneX / 2)) {
         if (x > 0 + selectOneZone) {
-          selected = true;
+          selectedX = true;
         }
         return LEFT_MOVEMENT;
       }
       if (y > (1023 / 2 + deadZoneY / 2)) {
         if (y < 1023 - selectOneZone) {
-          selected = true;
+          selectedY = true;
         }
         return DOWN_MOVEMENT;
       }
       if (y < (1023 / 2 - deadZoneY / 2)) {
         if (y > 0 + selectOneZone) {
-          selected = true;
+          selectedY = true;
         }
         return UP_MOVEMENT;
       }
