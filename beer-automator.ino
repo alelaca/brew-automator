@@ -6,6 +6,8 @@ class Alarm {
   private:
     int pin;
   public:
+    Alarm(){}
+
     Alarm(int pin) {
       this->pin = pin;
       pinMode(pin, OUTPUT);
@@ -27,6 +29,8 @@ class TemperatureSensor {
     OneWire oneWire;
     DallasTemperature sensors;
   public:
+    TemperatureSensor() {}
+
     TemperatureSensor(int pin) {
       this->pin = pin;
 
@@ -72,6 +76,8 @@ class Joystick {
     String UP_MOVEMENT = "U";
     String DOWN_MOVEMENT = "D";
     String PRESS_MOVEMENT = "P";
+
+    Joystick() {}
 
     Joystick(int xPin, int yPin, int swPin) {
       this->xPin = xPin;
@@ -131,6 +137,8 @@ class Button {
     int lastState = LOW;
     int pin;
   public:
+    Button() {}
+
     Button(byte pin) {
       this->pin = pin;
       pinMode(pin, INPUT);
@@ -197,11 +205,10 @@ class MashProcessor {
     int waterPumpSwitch = LOW;
     int waterPumpHeatSwitch = LOW;
 
-   Joystick joystick = Joystick(0, 1, 8);
-   TemperatureSensor temperatureSensor = TemperatureSensor(7);
-   Alarm alarm = Alarm(13);
-
     ScreenHandler screenHandler;
+    TemperatureSensor temperatureSensor;
+    Joystick joystick;
+    Alarm alarm;
 
     const int MENU_ACTUAL_MASHING_DISPLAYED = 1;
     const int MENU_SET_MASHING_DISPLAYED = 2;
@@ -367,8 +374,11 @@ class MashProcessor {
   }
 
   public:
-    MashProcessor(ScreenHandler screenHandler) {
+    MashProcessor(ScreenHandler screenHandler, TemperatureSensor temperatureSensor, Joystick joystick, Alarm alarm) {
       this->screenHandler = screenHandler;
+      this->temperatureSensor = temperatureSensor;
+      this->joystick = joystick;
+      this->alarm = alarm;
     }
 
     void config() {
@@ -412,11 +422,16 @@ class MashProcessor {
     }
 };
 
+TemperatureSensor temperatureSensor = TemperatureSensor(7);
 ScreenHandler screenHandler = ScreenHandler(16, 2);
+Joystick joystick = Joystick(0, 1, 8);
+Alarm alarm = Alarm(13);
 
-MashProcessor mashProcessor = MashProcessor(screenHandler);
+MashProcessor mashProcessor = MashProcessor(screenHandler, temperatureSensor, joystick, alarm);
 
-Alarm alarma = Alarm(13);
+String menuItem1 = "1-Mash";
+String menuItem2 = "2-Cook";
+String menuItem3 = "3-Ferment";
 
 void setup() {
   screenHandler.show("Jarbier 1.0", "  Lets brew!");
@@ -424,6 +439,42 @@ void setup() {
 }
 
 void loop() {
-  mashProcessor.config();
-  mashProcessor.process();
+  screenHandler.show("Beer menu", menuItem1);
+
+  int selectedMenuOption = 1;
+  String joystickMovement = "";
+  while (joystickMovement != joystick.PRESS_MOVEMENT) {
+    joystickMovement = joystick.getMovement();
+    if (joystickMovement == joystick.DOWN_MOVEMENT) {
+      selectedMenuOption++;
+    }
+    else if (joystickMovement == joystick.UP_MOVEMENT) {
+      selectedMenuOption--;
+    }
+
+    if (selectedMenuOption < 1 || selectedMenuOption > 3) {
+      selectedMenuOption = 1;
+    }
+
+    if (selectedMenuOption == 1) {
+      screenHandler.show("Beer menu", menuItem1);
+    } else if (selectedMenuOption == 2) {
+      screenHandler.show("Beer menu", menuItem2);
+    } else if (selectedMenuOption == 3) {
+      screenHandler.show("Beer menu", menuItem3);
+    }
+  }
+
+  delay(800);
+
+  if (selectedMenuOption == 1) {
+    mashProcessor.config();
+    mashProcessor.process();
+  } else if (selectedMenuOption == 2) {
+    screenHandler.show("Beer menu", "Not rdy yet");
+  } else if (selectedMenuOption == 3) {
+    screenHandler.show("Beer menu", "Not rdy yet");
+  }
+
+  delay(1000);
 }
