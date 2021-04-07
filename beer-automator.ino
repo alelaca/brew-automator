@@ -2,6 +2,47 @@
 #include <DallasTemperature.h>
 #include <LiquidCrystal.h>
 
+class ToggleSwitch {
+  private:
+    int pin;
+  public:
+    ToggleSwitch(){}
+
+    ToggleSwitch(int pin){
+      this->pin = pin;
+    }
+
+    bool isTurnedOn() {
+      return digitalRead(pin) == HIGH;
+    }
+};
+
+class Relay {
+  private:
+    int pin;
+    bool turnedOn = false;
+  public:
+    Relay(){}
+
+    Relay(int pin) {
+      this->pin = pin;
+    }
+
+    void turnOn() {
+      digitalWrite(pin, HIGH);
+      turnedOn = true;
+    }
+
+    void turnOff() {
+      digitalWrite(pin, LOW);
+      turnedOn = false;
+    }
+
+    bool isTurnedOn() {
+      return turnedOn;
+    }
+};
+
 class Alarm {
   private:
     int pin;
@@ -203,14 +244,14 @@ class MashProcessor {
     bool configFinished = false;
     bool processFinished = false;
 
-    int manualModeSwitch = LOW;
-    int waterPumpSwitch = LOW;
-    int waterPumpHeatSwitch = LOW;
-
     ScreenHandler screenHandler;
     TemperatureSensor temperatureSensor;
     Joystick joystick;
     Alarm alarm;
+    Relay waterPumpController;
+    ToggleSwitch manualModeSwitch;
+    ToggleSwitch waterPumpSwitch;
+    ToggleSwitch waterPumpHeatSwitch;
 
     const int MENU_ACTUAL_MASHING_DISPLAYED = 1;
     const int MENU_SET_MASHING_DISPLAYED = 2;
@@ -337,7 +378,7 @@ class MashProcessor {
           beepSound(7, 80);
         }
 
-        if (manualModeSwitch == LOW && waterPumpSwitch == HIGH && waterPumpHeatSwitch == HIGH) {
+        if (!manualModeSwitch.isTurnedOn() && waterPumpSwitch.isTurnedOn() && waterPumpHeatSwitch.isTurnedOn()) {
           // recirculates hot water
           // TODO turn on water pump relay
         } else {
@@ -347,8 +388,8 @@ class MashProcessor {
         alarmActivated = false;
       }
 
-      if (manualModeSwitch == HIGH) {
-        if (waterPumpSwitch == HIGH) {
+      if (manualModeSwitch.isTurnedOn()) {
+        if (waterPumpSwitch.isTurnedOn()) {
           // TODO turn on water pump relay
         } else {
           // TODO turn off water pump relay
@@ -365,22 +406,26 @@ class MashProcessor {
       actualRecirculationTime = (millis() - startingTime) / 1000;
       displayRecirculatingMenu();
 
-      if (waterPumpSwitch == LOW) {
+      if (!waterPumpSwitch.isTurnedOn()) {
         // alarm! water pump is off
         // beepSound(4, 40);
         // TODO turn water pump relay off
       } else {
-        // TODO turn water pump relay on
+        if (!waterPumpHeatSwitch.isTurnedOn()) {
+          // TODO turn water pump relay on
+        }
       }
     }
   }
 
   public:
-    MashProcessor(ScreenHandler screenHandler, TemperatureSensor temperatureSensor, Joystick joystick, Alarm alarm) {
+    MashProcessor(ScreenHandler screenHandler, TemperatureSensor temperatureSensor, Joystick joystick, Alarm alarm, Relay waterPumpController, ToggleSwitch waterPumpSwitch) {
       this->screenHandler = screenHandler;
       this->temperatureSensor = temperatureSensor;
       this->joystick = joystick;
       this->alarm = alarm;
+      this->waterPumpController = waterPumpController;
+      this->waterPumpSwitch = waterPumpSwitch;
     }
 
     void config() {
@@ -428,8 +473,10 @@ TemperatureSensor temperatureSensor = TemperatureSensor(7);
 ScreenHandler screenHandler = ScreenHandler(16, 2);
 Joystick joystick = Joystick(0, 1, 8);
 Alarm alarm = Alarm(13);
+Relay waterPumpController = Relay(9);
+ToggleSwitch waterPumpSwitch = ToggleSwitch(10);
 
-MashProcessor mashProcessor = MashProcessor(screenHandler, temperatureSensor, joystick, alarm);
+MashProcessor mashProcessor = MashProcessor(screenHandler, temperatureSensor, joystick, alarm, waterPumpController, waterPumpSwitch);
 
 String menuItem1 = "1-Mash";
 String menuItem2 = "2-Cook";
@@ -438,6 +485,7 @@ String menuItem3 = "3-Ferment";
 void setup() {
   screenHandler.show("Jarbier 1.0", "  Lets brew!");
   delay(4000);
+  Serial.begin(9600);
 }
 
 void loop() {
@@ -446,6 +494,7 @@ void loop() {
   int selectedMenuOption = 1;
   String joystickMovement = "";
   while (joystickMovement != joystick.PRESS_MOVEMENT) {
+    Serial.write(digitalRead(10));
     joystickMovement = joystick.getMovement();
     if (joystickMovement == joystick.DOWN_MOVEMENT) {
       selectedMenuOption++;
