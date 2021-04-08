@@ -1,6 +1,8 @@
+#include <Wire.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <LiquidCrystal.h>
+#include <LiquidCrystal_I2C.h>
 
 class Alarm {
   private:
@@ -167,27 +169,43 @@ class Button {
 
 class ScreenHandler {
   private:
-    LiquidCrystal screen = LiquidCrystal(12, 11, 5, 4, 3, 2);
+    LiquidCrystal_I2C screen = LiquidCrystal_I2C(0x27, 20, 4);
 
   public:
     ScreenHandler() {
-      screen.begin(16, 2);
     }
 
-    ScreenHandler(int width, int height) {
-      screen.begin(width, height);
+    void initializeScreen() {
+      screen.init();
+      screen.backlight();
     }
 
-    void show(String upperMessage, String bottomMessage) {
-      upperMessage += "          ";
-      bottomMessage += "          ";
+    void show(String firstLine, String secondLine, String thirdLine, String forthLine) {
+      /*String fillLine = "";
+      firstLine += fillLine;
+      secondLine += fillLine;
+      thirdLine += fillLine;
+      forthLine += fillLine;*/
 
       screen.setCursor(0, 0);
-      screen.print(upperMessage);
+      screen.print(firstLine);
       screen.setCursor(0, 1);
-      screen.print(bottomMessage);
+      screen.print(secondLine);
+      screen.setCursor(0, 2);
+      screen.print(thirdLine);
+      screen.setCursor(0, 3);
+      screen.print(forthLine);
     }
 
+    void clearAndShow(String firstLine, String secondLine, String thirdLine, String forthLine) {
+      screen.clear();
+      show(firstLine, secondLine, thirdLine, forthLine);
+    }
+
+    void showInCursor(String msg, int row, int col) {
+      screen.setCursor(col, row);
+      screen.print(msg);
+    }
 };
 
 class MashProcessor {
@@ -212,10 +230,6 @@ class MashProcessor {
     Joystick joystick;
     Alarm alarm;
 
-    const int MENU_ACTUAL_MASHING_DISPLAYED = 1;
-    const int MENU_SET_MASHING_DISPLAYED = 2;
-    int currentMashingMenu = MENU_ACTUAL_MASHING_DISPLAYED;
-
     const int CONFIG_TEMP_ID = 1;
     const int CONFIG_TIME_ID = 2;
     int *currentConfig = &selectedMashTemperature;
@@ -224,32 +238,64 @@ class MashProcessor {
     bool alarmActivated = false;
 
     void displayMashSelectionMenu() {
-      String mashTemperatureMsg = "T=" + String(selectedMashTemperature) + "C t=" + String(selectedMashTime) + "m";
-      screenHandler.show("Mash config", mashTemperatureMsg);
+      String mashTemperatureMsg = " temp = " + String(selectedMashTemperature) + " C";
+      String mashTimeMsg = " time = " + String(selectedMashTime) + " min";
+      screenHandler.clearAndShow("Mashing config", "", mashTemperatureMsg, mashTimeMsg);
+    }
+
+    void displayMashSelectionUpdatingValues() {
+      String mashTemperatureMsg = String(selectedMashTemperature) + " C";
+      String mashTimeMsg = String(selectedMashTime) + " min";
+      screenHandler.showInCursor(mashTemperatureMsg, 2, 8);
+      screenHandler.showInCursor(mashTimeMsg, 3, 8);
     }
 
     void displayRecirculationSelectionMenu() {
-      String recirculationTimeMsg ="t=" + String(selectedRecirculationTime) + "m";
-      screenHandler.show("Recirc. config", recirculationTimeMsg);
+      String recirculationTimeMsg = " time = " + String(selectedRecirculationTime) + " min";
+      screenHandler.clearAndShow("Recirculation config", "", recirculationTimeMsg, "");
+    }
+
+    void displayRecirculationSelectionUpdatingValues(){
+      String recirculationTimeMsg = String(selectedRecirculationTime) + " min";
+      screenHandler.showInCursor(recirculationTimeMsg, 2, 8);
     }
 
     void displayConfirmConfigMenu() {
-      String configMsg = "M=" + String(selectedMashTemperature) + "C/" + String(selectedMashTime) + "m R=" + String(selectedRecirculationTime) + "m";
-      screenHandler.show("Confirm config", configMsg);
+      String mashSettingMsg = "Mash set " + String(selectedMashTemperature) + "C " + String(selectedMashTime) + "min";
+      String recirculateSettingMsg = "Rercirc set " + String(selectedRecirculationTime) + "min";
+      screenHandler.clearAndShow("Confirm settings", "", mashSettingMsg, recirculateSettingMsg);
     }
 
-    void displayMashingMenu(int temp, int timeInSeg) {
-      String mashMsg = "T=" + String(temp) + "C t=" + getTimeFormat(timeInSeg);
-      screenHandler.show("Mashing ...", mashMsg);
+    void displayMashingMenu() {
+      String formattedSelectedTime = selectedMashTime<10? "0" + String(selectedMashTime): String(selectedMashTime);
+      String mashingTempMsg = " temp  " + String(selectedMashTemperature) + "C | " + String(actualMashTemperature) + "C";
+      String mashingTimeMsg = " time  " + formattedSelectedTime + "m | " + getTimeFormat(actualMashTime);
+      screenHandler.clearAndShow("Mashing", "       set | actual", mashingTempMsg, mashingTimeMsg);
+    }
+
+    void displayMashingUpdatingValues() {
+      String mashingTempMsg = String(actualMashTemperature) + "C";
+      String mashingTimeMsg = getTimeFormat(actualMashTime);
+      screenHandler.showInCursor(mashingTempMsg, 2, 13);
+      screenHandler.showInCursor(mashingTimeMsg, 3, 13);
     }
 
     void displayRecirculatingMenu() {
-      String recircMsg = "t=" + getTimeFormat(actualRecirculationTime) + " T=" + String(actualMashTemperature);
-      screenHandler.show("Recirculating", recircMsg);
+      String formattedSelectedTime = selectedRecirculationTime<10? "0" + String(selectedRecirculationTime): String(selectedRecirculationTime);
+      String recircTempMsg = " temp      | " + String(actualMashTemperature) + "C"; // FIXME change this variable to one for recirc
+      String recircTimeMsg = " time  " + formattedSelectedTime + "m | " + getTimeFormat(actualRecirculationTime);
+      screenHandler.clearAndShow("Recirculating", "       set | actual", recircTempMsg, recircTimeMsg);
+    }
+
+    void displayRecirculatingUpdatingValues(){
+      String recircTempMsg = String(actualMashTemperature) + "C"; // FIXME change this variable to one for recirc
+      String recircTimeMsg = getTimeFormat(actualRecirculationTime);
+      screenHandler.showInCursor(recircTempMsg, 2, 13);
+      screenHandler.showInCursor(recircTimeMsg, 3, 13);
     }
 
     void displayFinishMenu() {
-      screenHandler.show("Process finished", "Lets cook it!");
+      screenHandler.clearAndShow("Process finished", "", "Lets cook it!", "");
     }
 
     String getTimeFormat(int timeInSeg) {
@@ -294,9 +340,11 @@ class MashProcessor {
       }
       else if (movement == joystick.UP_MOVEMENT) {
         *currentConfig = *currentConfig + 1;
+        displayMashSelectionUpdatingValues();
       }
       else if (movement == joystick.DOWN_MOVEMENT) {
         *currentConfig = *currentConfig - 1;
+        displayMashSelectionUpdatingValues();
       }
     }
 
@@ -305,31 +353,23 @@ class MashProcessor {
 
     if (movement == joystick.UP_MOVEMENT) {
         selectedRecirculationTime++;
+        displayRecirculationSelectionUpdatingValues();
       }
       else if (movement == joystick.DOWN_MOVEMENT) {
         selectedRecirculationTime--;
+        displayRecirculationSelectionUpdatingValues();
       }
   }
 
   void processMash() {
     startingTime = millis();
-
+    displayMashingMenu();
+    
     while ((actualMashTime / 60) < selectedMashTime) {
       actualMashTime = (millis() - startingTime) / 1000;
       actualMashTemperature = temperatureSensor.getTemperature();
 
-      String movement = joystick.getMovement();
-      if (currentMashingMenu == MENU_SET_MASHING_DISPLAYED) {
-        displayMashingMenu(selectedMashTemperature, selectedMashTime*60);
-        if (movement == joystick.UP_MOVEMENT || movement == joystick.DOWN_MOVEMENT) {
-          currentMashingMenu = MENU_ACTUAL_MASHING_DISPLAYED;
-        }
-      } else {
-        displayMashingMenu(actualMashTemperature, actualMashTime);
-        if (movement == joystick.UP_MOVEMENT || movement == joystick.DOWN_MOVEMENT) {
-          currentMashingMenu = MENU_SET_MASHING_DISPLAYED;
-        }
-      }
+      displayMashingUpdatingValues();
 
       if (actualMashTemperature < selectedMashTemperature) {
         if (!alarmActivated) {
@@ -359,11 +399,13 @@ class MashProcessor {
 
   void processRecirculation() {
     startingTime = millis();
-
+    displayRecirculatingMenu();
+    
     while ((actualRecirculationTime / 60) < selectedRecirculationTime) {
       actualMashTemperature = temperatureSensor.getTemperature();
       actualRecirculationTime = (millis() - startingTime) / 1000;
-      displayRecirculatingMenu();
+      
+      displayRecirculatingUpdatingValues();
 
       if (waterPumpSwitch == LOW) {
         // alarm! water pump is off
@@ -376,6 +418,8 @@ class MashProcessor {
   }
 
   public:
+    MashProcessor() {}
+  
     MashProcessor(ScreenHandler screenHandler, TemperatureSensor temperatureSensor, Joystick joystick, Alarm alarm) {
       this->screenHandler = screenHandler;
       this->temperatureSensor = temperatureSensor;
@@ -388,22 +432,22 @@ class MashProcessor {
         return;
       }
 
+      displayMashSelectionMenu();
       while (joystick.getMovement() != joystick.PRESS_MOVEMENT) {
-        displayMashSelectionMenu();
         readMashSettings();
       }
 
       delay(800);
 
+      displayRecirculationSelectionMenu();
       while (joystick.getMovement() != joystick.PRESS_MOVEMENT) {
-        displayRecirculationSelectionMenu();
         readRecirculationSettings();
       }
 
       delay(800);
 
+      displayConfirmConfigMenu();
       while (joystick.getMovement() != joystick.PRESS_MOVEMENT) {
-        displayConfirmConfigMenu();
       }
 
       configFinished = true;
@@ -425,58 +469,74 @@ class MashProcessor {
 };
 
 TemperatureSensor temperatureSensor = TemperatureSensor(7);
-ScreenHandler screenHandler = ScreenHandler(16, 2);
+ScreenHandler screenHandler;
 Joystick joystick = Joystick(0, 1, 8);
 Alarm alarm = Alarm(13);
 
-MashProcessor mashProcessor = MashProcessor(screenHandler, temperatureSensor, joystick, alarm);
+MashProcessor* mashProcessor;
 
 String menuItem1 = "1-Mash";
 String menuItem2 = "2-Cook";
 String menuItem3 = "3-Ferment";
+String menuItemSelector = " <--";
 
 void setup() {
-  screenHandler.show("Jarbier 1.0", "  Lets brew!");
+  screenHandler.initializeScreen();
+  screenHandler.show("    Jarbier 1.0", "", " Lets brew!", "");
   delay(4000);
+  mashProcessor = new MashProcessor(screenHandler, temperatureSensor, joystick, alarm);
 }
 
 void loop() {
-  screenHandler.show("Beer menu", menuItem1);
+  printMenuOption(1);
 
+  bool optionChanged = false;
   int selectedMenuOption = 1;
   String joystickMovement = "";
+  
   while (joystickMovement != joystick.PRESS_MOVEMENT) {
     joystickMovement = joystick.getMovement();
     if (joystickMovement == joystick.DOWN_MOVEMENT) {
       selectedMenuOption++;
+      optionChanged = true;
     }
     else if (joystickMovement == joystick.UP_MOVEMENT) {
       selectedMenuOption--;
+      optionChanged = true;
     }
 
-    if (selectedMenuOption < 1 || selectedMenuOption > 3) {
+    if (selectedMenuOption < 1) {
+      selectedMenuOption = 3;
+    } else if (selectedMenuOption > 3) {
       selectedMenuOption = 1;
     }
 
-    if (selectedMenuOption == 1) {
-      screenHandler.show("Beer menu", menuItem1);
-    } else if (selectedMenuOption == 2) {
-      screenHandler.show("Beer menu", menuItem2);
-    } else if (selectedMenuOption == 3) {
-      screenHandler.show("Beer menu", menuItem3);
+    if (optionChanged) {
+      printMenuOption(selectedMenuOption);
+      optionChanged = false;
     }
   }
 
   delay(800);
 
   if (selectedMenuOption == 1) {
-    mashProcessor.config();
-    mashProcessor.process();
+    mashProcessor->config();
+    mashProcessor->process();
   } else if (selectedMenuOption == 2) {
-    screenHandler.show("Beer menu", "Not rdy yet");
+    screenHandler.clearAndShow("Beer menu", "", "Option not ready yet", "");
   } else if (selectedMenuOption == 3) {
-    screenHandler.show("Beer menu", "Not rdy yet");
+    screenHandler.clearAndShow("Beer menu", "", "Option not ready yet", "");
   }
 
-  delay(1000);
+  delay(2000);
+}
+
+void printMenuOption(int selected) {
+  if (selected == 1) {
+    screenHandler.clearAndShow("Beer menu", menuItem1 + menuItemSelector, menuItem2, menuItem3);
+  } else if (selected == 2) {
+    screenHandler.clearAndShow("Beer menu", menuItem1, menuItem2 + menuItemSelector, menuItem3);
+  } else if (selected == 3) {
+    screenHandler.clearAndShow("Beer menu", menuItem1, menuItem2, menuItem3 + menuItemSelector);
+  }
 }
