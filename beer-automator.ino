@@ -540,7 +540,7 @@ MashProcessor* mashProcessor;
 
 String menuItem1 = "1-Mash";
 String menuItem2 = "2-Cook";
-String menuItem3 = "3-Ferment";
+String menuItem3 = "3-Water pump";
 String menuItemSelector = " <--";
 
 void setup() {
@@ -588,10 +588,34 @@ void loop() {
   } else if (selectedMenuOption == 2) {
     screenHandler.clearAndShow("Beer menu", "", "Option not ready yet", "");
   } else if (selectedMenuOption == 3) {
-    screenHandler.clearAndShow("Beer menu", "", "Option not ready yet", "");
+    controlWaterPumpManually();
   }
 
   delay(2000);
+}
+
+void controlWaterPumpManually() {
+  String waterPumpState = waterPumpController.isTurnedOn()? "ON ": "OFF";
+  screenHandler.clearAndShow("Water pump control", "", "  State: " + waterPumpState, "");
+
+  String lastState = waterPumpState;
+  String joystickMovement = "";
+  while (joystickMovement != joystick.PRESS_MOVEMENT) {
+    joystickMovement = joystick.getMovement();
+    if (waterPumpSwitch.isTurnedOn() && manualModeSwitch.isTurnedOn()) {
+      waterPumpController.turnOn();
+      waterPumpState = "ON ";
+    } else {
+      waterPumpController.turnOff();
+      waterPumpState = "OFF";
+    }
+
+    if (lastState != waterPumpState) {
+      screenHandler.clearAndShow("Water pump control", "", "  State: " + waterPumpState, "");  
+      lastState = waterPumpState;
+    }
+  }
+  waterPumpController.turnOff();
 }
 
 void printMenuOption(int selected) {
