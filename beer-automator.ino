@@ -4,6 +4,49 @@
 #include <LiquidCrystal.h>
 #include <LiquidCrystal_I2C.h>
 
+class ToggleSwitch {
+  private:
+    int pin;
+  public:
+    ToggleSwitch(){}
+
+    ToggleSwitch(int pin){
+      this->pin = pin;
+    }
+
+    bool isTurnedOn() {
+      return digitalRead(pin) == HIGH;
+    }
+};
+
+class Relay {
+  private:
+    int pin;
+    bool turnedOn = false;
+  public:
+    Relay(){}
+
+    Relay(int pin) {
+      this->pin = pin;
+      pinMode(pin, OUTPUT);
+      digitalWrite(pin, LOW);
+    }
+
+    void turnOn() {
+      digitalWrite(pin, HIGH);
+      turnedOn = true;
+    }
+
+    void turnOff() {
+      digitalWrite(pin, LOW);
+      turnedOn = false;
+    }
+
+    bool isTurnedOn() {
+      return turnedOn;
+    }
+};
+
 class Alarm {
   private:
     int pin;
@@ -221,14 +264,19 @@ class MashProcessor {
     bool configFinished = false;
     bool processFinished = false;
 
-    int manualModeSwitch = LOW;
-    int waterPumpSwitch = LOW;
-    int waterPumpHeatSwitch = LOW;
-
     ScreenHandler screenHandler;
     TemperatureSensor temperatureSensor;
     Joystick joystick;
     Alarm alarm;
+
+    Relay waterPumpController;
+    ToggleSwitch manualModeSwitch;
+    ToggleSwitch waterPumpSwitch;
+    ToggleSwitch waterPumpHeatSwitch;
+
+    const int MENU_ACTUAL_MASHING_DISPLAYED = 1;
+    const int MENU_SET_MASHING_DISPLAYED = 2;
+    int currentMashingMenu = MENU_ACTUAL_MASHING_DISPLAYED;
 
     const int CONFIG_TEMP_ID = 1;
     const int CONFIG_TIME_ID = 2;
@@ -377,21 +425,22 @@ class MashProcessor {
           beepSound(7, 80);
         }
 
-        if (manualModeSwitch == LOW && waterPumpSwitch == HIGH && waterPumpHeatSwitch == HIGH) {
+        if (!manualModeSwitch.isTurnedOn() && waterPumpSwitch.isTurnedOn() && waterPumpHeatSwitch.isTurnedOn()) {
           // recirculates hot water
-          // TODO turn on water pump relay
+          waterPumpController.turnOn();
         } else {
-          // TODO turn off water pump relay
+          waterPumpController.turnOff();
         }
       } else {
         alarmActivated = false;
       }
 
-      if (manualModeSwitch == HIGH) {
-        if (waterPumpSwitch == HIGH) {
-          // TODO turn on water pump relay
+      // if manual control required
+      if (manualModeSwitch.isTurnedOn()) {
+        if (waterPumpSwitch.isTurnedOn()) {
+          waterPumpController.turnOn();
         } else {
-          // TODO turn off water pump relay
+          waterPumpController.turnOff();
         }
       }
     }
@@ -407,12 +456,17 @@ class MashProcessor {
       
       displayRecirculatingUpdatingValues();
 
-      if (waterPumpSwitch == LOW) {
+      if (!waterPumpSwitch.isTurnedOn()) {
         // alarm! water pump is off
-        // beepSound(4, 40);
-        // TODO turn water pump relay off
+        beepSound(1, 1000);
+        waterPumpController.turnOff();
       } else {
-        // TODO turn water pump relay on
+        // its for checking pipes connection are ok and its recirculating wort
+        if (!waterPumpHeatSwitch.isTurnedOn()) {
+          waterPumpController.turnOn();
+        } else {
+          beepSound(1, 1000);
+        }
       }
     }
   }
@@ -420,11 +474,15 @@ class MashProcessor {
   public:
     MashProcessor() {}
   
-    MashProcessor(ScreenHandler screenHandler, TemperatureSensor temperatureSensor, Joystick joystick, Alarm alarm) {
+    MashProcessor(ScreenHandler screenHandler, TemperatureSensor temperatureSensor, Joystick joystick, Alarm alarm, Relay waterPumpController, ToggleSwitch manualModeSwitch, ToggleSwitch waterPumpSwitch, ToggleSwitch waterPumpHeatSwitch) {
       this->screenHandler = screenHandler;
       this->temperatureSensor = temperatureSensor;
       this->joystick = joystick;
       this->alarm = alarm;
+      this->waterPumpController = waterPumpController;
+      this->manualModeSwitch = manualModeSwitch;
+      this->waterPumpSwitch = waterPumpSwitch;
+      this->waterPumpHeatSwitch = waterPumpHeatSwitch;
     }
 
     void config() {
@@ -462,6 +520,7 @@ class MashProcessor {
 
       processRecirculation();
 
+      waterPumpController.turnOff();
       processFinished = true;
       displayFinishMenu();
       beepSound(4, 1000);
@@ -472,6 +531,10 @@ TemperatureSensor temperatureSensor = TemperatureSensor(7);
 ScreenHandler screenHandler;
 Joystick joystick = Joystick(0, 1, 8);
 Alarm alarm = Alarm(13);
+Relay waterPumpController = Relay(9);
+ToggleSwitch manualModeSwitch = ToggleSwitch(4);
+ToggleSwitch waterPumpSwitch = ToggleSwitch(3);
+ToggleSwitch waterPumpHeatSwitch = ToggleSwitch(2);
 
 MashProcessor* mashProcessor;
 
@@ -484,7 +547,7 @@ void setup() {
   screenHandler.initializeScreen();
   screenHandler.show("    Jarbier 1.0", "", " Lets brew!", "");
   delay(4000);
-  mashProcessor = new MashProcessor(screenHandler, temperatureSensor, joystick, alarm);
+  mashProcessor = new MashProcessor(screenHandler, temperatureSensor, joystick, alarm, waterPumpController, manualModeSwitch, waterPumpSwitch, waterPumpHeatSwitch);
 }
 
 void loop() {
